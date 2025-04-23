@@ -8,8 +8,8 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 type ExtensionPreferences = {
-  /** Gemini API Key - Your Google Gemini API key from https://aistudio.google.com/app/apikey */
-  "geminiApiKey": string
+  /** Shopify API Key - Your Shopify AI API key */
+  "shopifyApiKey": string
 }
 
 /** Preferences accessible in all the extension's commands */

@@ -1,9 +1,9 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "gemini-ai",
-  "title": "Gemini AI",
-  "description": "Query Google's Gemini AI model directly from Raycast",
-  "icon": "gemini.png",
+  "name": "shopify-ai",
+  "title": "Shopify AI",
+  "description": "Query Shopify AI model directly from Raycast",
+  "icon": "shopify-favicon.png",
   "author": "your-name",
   "categories": [
     "Productivity",
@@ -13,8 +13,8 @@
   "commands": [
     {
       "name": "index",
-      "title": "Ask Gemini",
-      "description": "Ask a question to Gemini AI",
+      "title": "Ask Shopify AI",
+      "description": "Ask a question to Shopify AI",
       "mode": "view",
       "arguments": [
         {
@@ -28,16 +28,16 @@
   ],
   "preferences": [
     {
-      "name": "geminiApiKey",
-      "title": "Gemini API Key",
-      "description": "Your Google Gemini API key from https://aistudio.google.com/app/apikey",
+      "name": "shopifyApiKey",
+      "title": "Shopify API Key",
+      "description": "Your Shopify AI API key",
       "type": "password",
       "required": true
     }
   ],
   "dependencies": {
-    "@google/generative-ai": "^0.24.0",
-    "@raycast/api": "^1.96.0"
+    "@raycast/api": "^1.96.0",
+    "openai": "^4.96.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.1",

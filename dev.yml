@@ -1,0 +1,4 @@
+name: raycast-llm 
+up:
+  - node:
+      version: v23.11.0
