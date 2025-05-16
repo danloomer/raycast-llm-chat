@@ -1,16 +1,20 @@
+import { Part } from '@google/genai'
+import { ModelId } from './lib/llm'
+
 export interface ChatMessage {
-  id: string;
-  date: number;
-  role: "user" | "assistant" | "system";
-  parts: ChatPart[];
+  id: string
+  date: number
+  role: 'user' | 'model'
+  parts: ChatPart[]
 }
 
-export type ChatPart = ChatCompletionMessageParam;
+export type ChatPart = Part
 
 export interface ChatSession {
-  id: string;
-  title: string;
-  history: ChatMessage[];
-  createdAt: number;
-  updatedAt: number;
+  id: string
+  title: string
+  history: ChatMessage[]
+  createdAt: number
+  updatedAt: number
+  modelId: ModelId
 }

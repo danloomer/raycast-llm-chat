@@ -15,31 +15,42 @@
       "name": "index",
       "title": "Ask Shopify AI",
       "description": "Ask a question to Shopify AI",
-      "mode": "view",
-      "arguments": [
-        {
-          "name": "query",
-          "placeholder": "Your prompt",
-          "type": "text",
-          "required": false
-        }
-      ]
+      "mode": "view"
     }
   ],
   "preferences": [
     {
-      "name": "shopifyApiKey",
-      "title": "Shopify API Key",
-      "description": "Your Shopify AI API key",
+      "name": "geminiApiKey",
+      "title": "Gemini API Key",
+      "description": "Your Google Gemini API key from https://aistudio.google.com/app/apikey",
       "type": "password",
-      "required": true
+      "required": false
+    },
+    {
+      "name": "openaiApiKey",
+      "title": "OpenAI API Key",
+      "description": "Your OpenAI API key from https://platform.openai.com/account/api-keys",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "anthropicApiKey",
+      "title": "Anthropic API Key",
+      "description": "Your Anthropic API key from https://console.anthropic.com/",
+      "type": "password",
+      "required": false
     }
   ],
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.50.3",
+    "@google/genai": "^0.12.0",
     "@raycast/api": "^1.96.0",
-    "openai": "^4.96.0"
+    "mergerino": "^0.4.0",
+    "openai": "^4.97.0",
+    "staterino": "^2.0.0"
   },
   "devDependencies": {
+    "@types/mergerino": "^0.4.5",
     "@types/node": "^22.14.1",
     "@types/react": "^19.1.2",
     "typescript": "^5.8.3"
