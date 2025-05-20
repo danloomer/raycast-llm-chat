@@ -1,5 +1,4 @@
 import OpenAI from 'openai'
-import { getPreferenceValues } from '@raycast/api'
 import { LLMProvider, LLMQueryProps } from '../types'
 import {
   showMissingApiKeyToast,
@@ -7,22 +6,52 @@ import {
   prepareLastMessageForStreaming,
   getLastMessageText,
 } from '../utils'
+import { execSync } from 'child_process'
 
-const OPENAI_MODELS = ['gpt-4.1-mini', 'gpt-4.1', 'gpt-4o'] as const
+const SHOPIFY_MODELS = [
+  'gpt-4.1',
+  'gpt-4.5-preview',
+  'o3',
+  'o3-mini',
+  'gpt-4.1-mini',
+  'anthropic:claude-3-5-sonnet',
+  'anthropic:claude-3-7-sonnet',
+  'gpt-4o',
+] as const
 
-export type OpenAIModelId = (typeof OPENAI_MODELS)[number]
+export type ShopifyModelId = (typeof SHOPIFY_MODELS)[number]
 
-const { openaiApiKey } = getPreferenceValues<Preferences>()
-export const openaiClient = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null
+function getShopifyApiKey(): string {
+  try {
+    return execSync('/opt/dev/bin/dev llm-gateway print-token --key', {
+      env: {
+        ...process.env,
+        PATH: '/opt/dev/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',
+      },
+    })
+      .toString()
+      .trim()
+  } catch (error) {
+    throw new Error(`Failed to fetch Shopify API key: ${error}`)
+  }
+}
 
-async function queryOpenAI({
+function getShopifyClient(): OpenAI {
+  return new OpenAI({
+    apiKey: getShopifyApiKey(),
+    baseURL: 'https://proxy.shopify.ai/v1',
+  })
+}
+
+async function queryShopify({
   modelId,
   curHistory,
   onHistoryChange,
   abortControllerRef,
 }: LLMQueryProps): Promise<string | undefined> {
+  const openaiClient = getShopifyClient()
   if (!openaiClient) {
-    await showMissingApiKeyToast('OpenAI')
+    await showMissingApiKeyToast('Shopify')
     return
   }
 
@@ -58,28 +87,25 @@ async function queryOpenAI({
   return getLastMessageText(curHistory)
 }
 
-export const openaiProvider: LLMProvider<OpenAIModelId> = {
-  name: 'OpenAI',
-  models: OPENAI_MODELS,
+export const shopifyProvider: LLMProvider<ShopifyModelId> = {
+  name: 'Shopify',
+  models: SHOPIFY_MODELS,
   weakModel: 'gpt-4.1-mini',
-  isModel: (modelId: string): boolean => OPENAI_MODELS.includes(modelId as any),
-  query: queryOpenAI,
+  isModel: (modelId: string): boolean => SHOPIFY_MODELS.includes(modelId as any),
+  query: queryShopify,
   generateText: async (prompt: string, options = {}): Promise<string | null> => {
-    if (!openaiClient) {
-      console.error('OpenAI API key is not set.')
-      return null
-    }
+    const openaiClient = getShopifyClient()
 
     try {
       const response = await openaiClient.chat.completions.create({
-        model: openaiProvider.weakModel,
+        model: shopifyProvider.weakModel,
         messages: [{ role: 'user', content: prompt }],
         max_completion_tokens: options.maxTokens,
       })
 
       return response.choices[0]?.message?.content?.trim() || null
     } catch (error: any) {
-      console.error('Error generating text with OpenAI:', error)
+      console.error('Error generating text with Shopify:', error)
       return null
     }
   },

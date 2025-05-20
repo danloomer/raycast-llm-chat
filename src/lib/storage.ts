@@ -3,8 +3,8 @@ import { ChatSession } from '../types'
 import { throttle } from './util'
 import { DEFAULT_MODEL_ID, ModelId } from './llm'
 
-const STATE_KEY = 'geminiChatState'
-//const STATE_KEY = 'geminiChatState_test'
+const STATE_KEY = 'shopifyChatState'
+//const STATE_KEY = 'shopifyChatState_test'
 
 export interface PersistentState {
   sessions: ChatSession[]

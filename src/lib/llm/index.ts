@@ -3,17 +3,15 @@ import { RefObject } from 'react'
 import { ChatMessage, ChatPart } from '../../types'
 import crypto from 'crypto'
 import { base64ToMarkdownImage } from '../util'
-import { geminiProvider } from './providers/gemini'
-import { openaiProvider } from './providers/openai'
-import { anthropicProvider } from './providers/anthropic'
+import { shopifyProvider } from './providers/shopify'
 
-export const providers = [geminiProvider, openaiProvider, anthropicProvider]
+export const providers = [shopifyProvider]
 
 export const AVAILABLE_MODELS = providers.flatMap((p) => p.models)
 
 export type ModelId = (typeof AVAILABLE_MODELS)[number]
 
-export const DEFAULT_MODEL_ID: ModelId = 'gemini-2.5-flash-preview-04-17'
+export const DEFAULT_MODEL_ID: ModelId = 'gpt-4.1'
 
 export function isValidModelId(id: string | null | undefined): id is ModelId {
   return Boolean(id && AVAILABLE_MODELS.includes(id as ModelId))
@@ -126,7 +124,7 @@ export async function generateChatTitle(
 
   try {
     const selectedProvider =
-      (modelId != null && providers.find((p) => p.isModel(modelId))) || geminiProvider
+      (modelId != null && providers.find((p) => p.isModel(modelId))) || shopifyProvider
 
     return await selectedProvider.generateText(titlePrompt, { maxTokens: 20 })
   } catch (error: any) {
@@ -143,7 +141,10 @@ export function getTextAndImagesFromParts(parts: ChatPart[]) {
   return parts.reduce(
     (acc, p) =>
       p.inlineData?.data && p.inlineData.mimeType
-        ? `${acc}${p.text ?? ''}\n${base64ToMarkdownImage(p.inlineData.data, p.inlineData.mimeType)}\n`
+        ? `${acc}${p.text ?? ''}\n${base64ToMarkdownImage(
+            p.inlineData.data,
+            p.inlineData.mimeType,
+          )}\n`
         : acc + (p.text ?? ''),
     '',
   )

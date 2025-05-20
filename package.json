@@ -18,29 +18,6 @@
       "mode": "view"
     }
   ],
-  "preferences": [
-    {
-      "name": "geminiApiKey",
-      "title": "Gemini API Key",
-      "description": "Your Google Gemini API key from https://aistudio.google.com/app/apikey",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "openaiApiKey",
-      "title": "OpenAI API Key",
-      "description": "Your OpenAI API key from https://platform.openai.com/account/api-keys",
-      "type": "password",
-      "required": false
-    },
-    {
-      "name": "anthropicApiKey",
-      "title": "Anthropic API Key",
-      "description": "Your Anthropic API key from https://console.anthropic.com/",
-      "type": "password",
-      "required": false
-    }
-  ],
   "dependencies": {
     "@anthropic-ai/sdk": "^0.50.3",
     "@google/genai": "^0.12.0",
@@ -58,5 +35,13 @@
   "scripts": {
     "build": "ray build -e dist",
     "dev": "ray develop"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "trailingComma": "all",
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false,
+    "semi": false
   }
 }
