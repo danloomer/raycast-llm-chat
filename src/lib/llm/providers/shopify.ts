@@ -6,39 +6,43 @@ import {
   prepareLastMessageForStreaming,
   getLastMessageText,
 } from '../utils'
-import { execSync } from 'child_process'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 const SHOPIFY_MODELS = [
   'gpt-4.1',
-  'gpt-4.5-preview',
   'o3',
+  'anthropic:claude-3-7-sonnet',
+  'google:gemini-2.5-pro-preview-05-06',
+  'gpt-4o',
+  'anthropic:claude-3-5-sonnet',
+  'google:gemini-2.5-flash-preview-05-20',
   'o3-mini',
   'gpt-4.1-mini',
-  'anthropic:claude-3-5-sonnet',
-  'anthropic:claude-3-7-sonnet',
-  'gpt-4o',
+  'google:gemini-2.0-flash',
 ] as const
 
 export type ShopifyModelId = (typeof SHOPIFY_MODELS)[number]
 
-function getShopifyApiKey(): string {
+async function getShopifyApiKey(): Promise<string> {
   try {
-    return execSync('/opt/dev/bin/dev llm-gateway print-token --key', {
+    const { stdout } = await execAsync('/opt/dev/bin/dev llm-gateway print-token --key', {
       env: {
         ...process.env,
         PATH: '/opt/dev/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin',
       },
     })
-      .toString()
-      .trim()
+    return stdout.trim()
   } catch (error) {
     throw new Error(`Failed to fetch Shopify API key: ${error}`)
   }
 }
 
-function getShopifyClient(): OpenAI {
+async function getShopifyClient(): Promise<OpenAI> {
   return new OpenAI({
-    apiKey: getShopifyApiKey(),
+    apiKey: await getShopifyApiKey(),
     baseURL: 'https://proxy.shopify.ai/v1',
   })
 }
@@ -49,7 +53,7 @@ async function queryShopify({
   onHistoryChange,
   abortControllerRef,
 }: LLMQueryProps): Promise<string | undefined> {
-  const openaiClient = getShopifyClient()
+  const openaiClient = await getShopifyClient()
   if (!openaiClient) {
     await showMissingApiKeyToast('Shopify')
     return
@@ -94,7 +98,7 @@ export const shopifyProvider: LLMProvider<ShopifyModelId> = {
   isModel: (modelId: string): boolean => SHOPIFY_MODELS.includes(modelId as any),
   query: queryShopify,
   generateText: async (prompt: string, options = {}): Promise<string | null> => {
-    const openaiClient = getShopifyClient()
+    const openaiClient = await getShopifyClient()
 
     try {
       const response = await openaiClient.chat.completions.create({
