@@ -29,6 +29,24 @@ export type ShopifyModelId = (typeof SHOPIFY_MODELS)[number]
 // Simple cache for the API key
 let cachedApiKey: string | null = null
 let isRefreshing = false
+let authRetryCount = 0
+const MAX_AUTH_RETRIES = 1
+
+function handleAuthError(error: any): boolean {
+  const isAuthError =
+    error?.status === 401 ||
+    error?.message?.includes('unauthorized') ||
+    error?.message?.includes('authentication')
+
+  if (isAuthError && authRetryCount < MAX_AUTH_RETRIES) {
+    cachedApiKey = null
+    authRetryCount++
+    return true
+  }
+
+  authRetryCount = 0
+  return false
+}
 
 async function fetchShopifyApiKey(): Promise<string> {
   try {
@@ -118,13 +136,7 @@ async function queryShopify(props: LLMQueryProps): Promise<string | undefined> {
 
     return getLastMessageText(curHistory)
   } catch (error: any) {
-    // If the error is related to authentication, refresh the API key and retry
-    if (
-      error?.status === 401 ||
-      error?.message?.includes('unauthorized') ||
-      error?.message?.includes('authentication')
-    ) {
-      cachedApiKey = null
+    if (handleAuthError(error)) {
       return queryShopify(props)
     }
 
@@ -146,13 +158,7 @@ async function generateShopifyText(
 
     return response.choices[0]?.message?.content?.trim() || null
   } catch (error: any) {
-    // If the error is related to authentication, refresh the API key and retry
-    if (
-      error?.status === 401 ||
-      error?.message?.includes('unauthorized') ||
-      error?.message?.includes('authentication')
-    ) {
-      cachedApiKey = null
+    if (handleAuthError(error)) {
       return generateShopifyText(prompt, options)
     }
 
