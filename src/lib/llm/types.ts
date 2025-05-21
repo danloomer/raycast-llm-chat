@@ -8,7 +8,7 @@ export interface LLMProvider<T extends string = string> {
   weakModel: T
   isModel: (modelId: string) => boolean
   query: (props: LLMQueryProps) => Promise<string | undefined>
-  generateText: (prompt: string, options?: { maxTokens?: number }) => Promise<string | null>
+  generateText: (prompt: string, options: LLMGenerateTextOptions) => Promise<string | null>
 }
 
 export interface LLMQueryProps {
@@ -17,4 +17,8 @@ export interface LLMQueryProps {
   enableSearchTool: boolean
   onHistoryChange?(newHistory: ChatMessage[]): void
   abortControllerRef: RefObject<AbortController | null>
+}
+
+export interface LLMGenerateTextOptions {
+  maxTokens?: number
 }

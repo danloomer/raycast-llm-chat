@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { LLMProvider, LLMQueryProps } from '../types'
+import { LLMProvider, LLMQueryProps, LLMGenerateTextOptions } from '../types'
 import {
   showMissingApiKeyToast,
   showResponseCompleteToast,
@@ -26,7 +26,11 @@ const SHOPIFY_MODELS = [
 
 export type ShopifyModelId = (typeof SHOPIFY_MODELS)[number]
 
-async function getShopifyApiKey(): Promise<string> {
+// Simple cache for the API key
+let cachedApiKey: string | null = null
+let isRefreshing = false
+
+async function fetchShopifyApiKey(): Promise<string> {
   try {
     const { stdout } = await execAsync('/opt/dev/bin/dev llm-gateway print-token --key', {
       env: {
@@ -40,6 +44,33 @@ async function getShopifyApiKey(): Promise<string> {
   }
 }
 
+async function getShopifyApiKey(): Promise<string> {
+  // If we already have a cached key, return it
+  if (cachedApiKey) {
+    return cachedApiKey
+  }
+
+  // If a refresh is already in progress, wait for it
+  if (isRefreshing) {
+    while (isRefreshing) {
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
+    if (cachedApiKey) {
+      return cachedApiKey
+    }
+  }
+
+  // Otherwise fetch a new key
+  isRefreshing = true
+  try {
+    const key = await fetchShopifyApiKey()
+    cachedApiKey = key
+    return key
+  } finally {
+    isRefreshing = false
+  }
+}
+
 async function getShopifyClient(): Promise<OpenAI> {
   return new OpenAI({
     apiKey: await getShopifyApiKey(),
@@ -47,48 +78,87 @@ async function getShopifyClient(): Promise<OpenAI> {
   })
 }
 
-async function queryShopify({
-  modelId,
-  curHistory,
-  onHistoryChange,
-  abortControllerRef,
-}: LLMQueryProps): Promise<string | undefined> {
-  const openaiClient = await getShopifyClient()
-  if (!openaiClient) {
-    await showMissingApiKeyToast('Shopify')
-    return
-  }
-
-  const lastMessage = prepareLastMessageForStreaming(curHistory.at(-1))
-  if (!lastMessage) return
-
-  // Convert Gemini-style messages to OpenAI format
-  const messages = curHistory.slice(0, -1).map((msg) => ({
-    role: msg.role === 'user' ? ('user' as const) : ('assistant' as const),
-    content: msg.parts.map((part) => part.text || '').join(''),
-  }))
-
-  const stream = await openaiClient.chat.completions.create({
-    model: modelId,
-    messages,
-    stream: true,
-  })
-
-  for await (const chunk of stream) {
-    if (abortControllerRef.current?.signal.aborted) break
-    const content = chunk.choices[0]?.delta?.content
-
-    if (content) {
-      lastMessage.parts.push({ text: content })
-      onHistoryChange?.([...curHistory])
+async function queryShopify(props: LLMQueryProps): Promise<string | undefined> {
+  const { modelId, curHistory, onHistoryChange, abortControllerRef } = props
+  try {
+    const openaiClient = await getShopifyClient()
+    if (!openaiClient) {
+      await showMissingApiKeyToast('Shopify')
+      return
     }
-  }
 
-  if (!abortControllerRef.current?.signal.aborted) {
-    await showResponseCompleteToast()
-  }
+    const lastMessage = prepareLastMessageForStreaming(curHistory.at(-1))
+    if (!lastMessage) return
 
-  return getLastMessageText(curHistory)
+    // Convert Gemini-style messages to OpenAI format
+    const messages = curHistory.slice(0, -1).map((msg) => ({
+      role: msg.role === 'user' ? ('user' as const) : ('assistant' as const),
+      content: msg.parts.map((part) => part.text || '').join(''),
+    }))
+
+    const stream = await openaiClient.chat.completions.create({
+      model: modelId,
+      messages,
+      stream: true,
+    })
+
+    for await (const chunk of stream) {
+      if (abortControllerRef.current?.signal.aborted) break
+      const content = chunk.choices[0]?.delta?.content
+
+      if (content) {
+        lastMessage.parts.push({ text: content })
+        onHistoryChange?.([...curHistory])
+      }
+    }
+
+    if (!abortControllerRef.current?.signal.aborted) {
+      await showResponseCompleteToast()
+    }
+
+    return getLastMessageText(curHistory)
+  } catch (error: any) {
+    // If the error is related to authentication, refresh the API key and retry
+    if (
+      error?.status === 401 ||
+      error?.message?.includes('unauthorized') ||
+      error?.message?.includes('authentication')
+    ) {
+      cachedApiKey = null
+      return queryShopify(props)
+    }
+
+    throw error
+  }
+}
+
+async function generateShopifyText(
+  prompt: string,
+  options: LLMGenerateTextOptions,
+): Promise<string | null> {
+  try {
+    const openaiClient = await getShopifyClient()
+    const response = await openaiClient.chat.completions.create({
+      model: 'gpt-4.1-mini', // Using weakModel directly here
+      messages: [{ role: 'user', content: prompt }],
+      max_completion_tokens: options.maxTokens,
+    })
+
+    return response.choices[0]?.message?.content?.trim() || null
+  } catch (error: any) {
+    // If the error is related to authentication, refresh the API key and retry
+    if (
+      error?.status === 401 ||
+      error?.message?.includes('unauthorized') ||
+      error?.message?.includes('authentication')
+    ) {
+      cachedApiKey = null
+      return generateShopifyText(prompt, options)
+    }
+
+    console.error('Error generating text with Shopify:', error)
+    return null
+  }
 }
 
 export const shopifyProvider: LLMProvider<ShopifyModelId> = {
@@ -97,20 +167,5 @@ export const shopifyProvider: LLMProvider<ShopifyModelId> = {
   weakModel: 'gpt-4.1-mini',
   isModel: (modelId: string): boolean => SHOPIFY_MODELS.includes(modelId as any),
   query: queryShopify,
-  generateText: async (prompt: string, options = {}): Promise<string | null> => {
-    const openaiClient = await getShopifyClient()
-
-    try {
-      const response = await openaiClient.chat.completions.create({
-        model: shopifyProvider.weakModel,
-        messages: [{ role: 'user', content: prompt }],
-        max_completion_tokens: options.maxTokens,
-      })
-
-      return response.choices[0]?.message?.content?.trim() || null
-    } catch (error: any) {
-      console.error('Error generating text with Shopify:', error)
-      return null
-    }
-  },
+  generateText: generateShopifyText,
 }
