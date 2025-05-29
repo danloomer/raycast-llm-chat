@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { ActionPanel, Icon, Action } from '@raycast/api'
 import { ModelId, providers } from '../lib/llm'
+import { AiModels } from '../lib/llm/types'
 
 interface Props {
   value: ModelId
@@ -9,14 +10,14 @@ interface Props {
 }
 
 export function ModelSubmenu({ value, onChange }: Props) {
-  const [modelsByProvider, setModelsByProvider] = useState<Record<string, string[]>>({})
+  const [modelsByProvider, setModelsByProvider] = useState<Record<string, AiModels>>({})
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     async function fetchModels() {
       const entries = await Promise.all(
         providers.map(
-          async (provider) => [provider.name, await provider.getModels()] as [string, string[]],
+          async (provider) => [provider.name, await provider.getModels()] as [string, AiModels],
         ),
       )
       setModelsByProvider(Object.fromEntries(entries))
@@ -40,7 +41,7 @@ export function ModelSubmenu({ value, onChange }: Props) {
       {!isLoading &&
         providers.map((provider) => (
           <ActionPanel.Section key={provider.name} title={provider.name}>
-            {(modelsByProvider[provider.name] || []).map((model) => (
+            {(modelsByProvider[provider.name] || []).filteredModels.map((model) => (
               <Action
                 key={model}
                 title={model}

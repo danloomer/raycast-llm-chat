@@ -15,6 +15,7 @@ import {
 import { useEffect, useState } from 'react'
 import { ModelSubmenu } from './ModelSubmenu'
 import { SessionDropdown } from './SessionDropDown'
+import { AiModels } from '../lib/llm/types'
 
 interface Props {
   editMode?: boolean
@@ -37,7 +38,7 @@ export function PromptForm({ editMode, editMessageId }: Props) {
 
   const isInit = useStore(isInitializing)
 
-  const [providerModels, setProviderModels] = useState<Record<string, string[]>>({})
+  const [providerModels, setProviderModels] = useState<Record<string, AiModels>>({})
   const [isLoadingModels, setIsLoadingModels] = useState(true)
 
   useEffect(() => {
@@ -66,9 +67,9 @@ export function PromptForm({ editMode, editMessageId }: Props) {
         providers.map(async (provider) => {
           try {
             const models = await provider.getModels()
-            return [provider.name, models] as [string, string[]]
+            return [provider.name, models] as [string, AiModels]
           } catch {
-            return [provider.name, []] as [string, string[]]
+            return [provider.name, {}] as [string, AiModels]
           }
         }),
       )
@@ -144,7 +145,7 @@ export function PromptForm({ editMode, editMessageId }: Props) {
         >
           {providers.map((provider) => (
             <Form.Dropdown.Section key={provider.name} title={provider.name}>
-              {providerModels[provider.name].map((model) => (
+              {providerModels[provider.name].filteredModels.map((model) => (
                 <Form.Dropdown.Item key={model} title={model} value={model} />
               ))}
             </Form.Dropdown.Section>

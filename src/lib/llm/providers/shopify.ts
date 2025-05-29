@@ -1,5 +1,5 @@
 import OpenAI from 'openai'
-import { LLMProvider, LLMQueryProps, LLMGenerateTextOptions } from '../types'
+import { LLMProvider, LLMQueryProps, LLMGenerateTextOptions, AiModels } from '../types'
 import {
   showMissingApiKeyToast,
   showResponseCompleteToast,
@@ -81,13 +81,13 @@ async function getShopifyClient(): Promise<OpenAI> {
   })
 }
 
-async function getShopifyModels(retries = 0): Promise<string[]> {
+async function getShopifyModels(retries = 0): Promise<AiModels> {
   try {
     const openaiClient = await getShopifyClient()
 
     if (!openaiClient) {
       console.error('Shopify client is not available')
-      return []
+      return { filteredModels: [], models: [] }
     }
 
     const response = await openaiClient.models.list()
@@ -119,13 +119,13 @@ async function getShopifyModels(retries = 0): Promise<string[]> {
 
     const uniqueModels = Array.from(new Set(filteredModels))
 
-    return uniqueModels.length > 0 ? uniqueModels : models
+    return { filteredModels: uniqueModels.length > 0 ? uniqueModels : models, models }
   } catch (error: any) {
     if (handleAuthError(error) && retries < 3) {
       return getShopifyModels(retries + 1)
     }
     console.error('Error fetching Shopify models:', error)
-    return []
+    return { filteredModels: [], models: [] }
   }
 }
 
@@ -202,7 +202,7 @@ async function generateShopifyText(
 }
 
 async function checkIsModel(modelId: string): Promise<boolean> {
-  const models = await getShopifyModels()
+  const { models } = await getShopifyModels()
   return models.includes(modelId)
 }
 
