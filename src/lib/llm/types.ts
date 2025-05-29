@@ -3,10 +3,11 @@ import { ChatMessage } from '../../types'
 
 export interface LLMProvider<T extends string = string> {
   name: string
-  models: readonly T[]
+  models?: readonly T[]
   searchModels?: readonly T[]
   weakModel: T
-  isModel: (modelId: string) => boolean
+  isModel: (modelId: string) => Promise<boolean>
+  getModels: () => Promise<T[]>
   query: (props: LLMQueryProps) => Promise<string | undefined>
   generateText: (prompt: string, options: LLMGenerateTextOptions) => Promise<string | null>
 }

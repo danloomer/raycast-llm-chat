@@ -51,6 +51,15 @@ export async function queryLLM({
     return
   }
 
+  if (!modelId) {
+    await showToast({
+      style: Toast.Style.Failure,
+      title: 'ModelId not found',
+      message: `Model "${modelId}" is not supported.`,
+    })
+    return
+  }
+
   const now = Date.now()
 
   const userMessage: ChatMessage = {
@@ -74,7 +83,7 @@ export async function queryLLM({
     stopRequest()
     abortControllerRef.current = new AbortController()
 
-    const provider = providers.find((p) => p.isModel(modelId))
+    const provider = providers.find(async (p) => await p.isModel(modelId))
 
     if (provider) {
       return await provider.query({

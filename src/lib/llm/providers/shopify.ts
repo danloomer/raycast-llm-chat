@@ -11,21 +11,6 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
-const SHOPIFY_MODELS = [
-  'gpt-4.1',
-  'o3',
-  'anthropic:claude-3-7-sonnet',
-  'google:gemini-2.5-pro-preview-05-06',
-  'gpt-4o',
-  'anthropic:claude-3-5-sonnet',
-  'google:gemini-2.5-flash-preview-05-20',
-  'o3-mini',
-  'gpt-4.1-mini',
-  'google:gemini-2.0-flash',
-] as const
-
-export type ShopifyModelId = (typeof SHOPIFY_MODELS)[number]
-
 // Simple cache for the API key
 let cachedApiKey: string | null = null
 let isRefreshing = false
@@ -96,10 +81,59 @@ async function getShopifyClient(): Promise<OpenAI> {
   })
 }
 
+async function getShopifyModels(retries = 0): Promise<string[]> {
+  try {
+    const openaiClient = await getShopifyClient()
+
+    if (!openaiClient) {
+      console.error('Shopify client is not available')
+      return []
+    }
+
+    const response = await openaiClient.models.list()
+
+    const models = response.data.map((model) => model.id)
+
+    const filteredModels = models.filter((model) => {
+      if (!model || model === '') return false
+      // Exclude models with a suffix (e.g. "-preview", "-dev", "-20240101") if a base model exists
+      const baseModel = model.replace(
+        /-((\d{4}-\d{2}-\d{2})|\d{6,}|\d{8,}|preview|dev|test|beta|alpha)$/i,
+        '',
+      )
+      if (baseModel !== model && models.includes(baseModel)) return false
+
+      // Exclude models with a suffix (e.g. "-foo") if a base model exists
+      if (/-\w+$/.test(model) && models.includes(model.replace(/-\w+$/, ''))) return false
+
+      // Exclude models with "@" in the name if a base model exists
+      if (model.includes('@') && models.includes(baseModel)) return false
+
+      // Exclude prefixed models if a non-prefixed version exists
+      const nonPrefixed = model.replace(/^(openai:|google:|anthropic:)/i, '')
+      if (nonPrefixed !== model && models.includes(nonPrefixed)) return false
+      if (!nonPrefixed || nonPrefixed.trim() === '') return false
+
+      return true
+    })
+
+    const uniqueModels = Array.from(new Set(filteredModels))
+
+    return uniqueModels.length > 0 ? uniqueModels : models
+  } catch (error: any) {
+    if (handleAuthError(error) && retries < 3) {
+      return getShopifyModels(retries + 1)
+    }
+    console.error('Error fetching Shopify models:', error)
+    return []
+  }
+}
+
 async function queryShopify(props: LLMQueryProps): Promise<string | undefined> {
   const { modelId, curHistory, onHistoryChange, abortControllerRef } = props
   try {
     const openaiClient = await getShopifyClient()
+
     if (!openaiClient) {
       await showMissingApiKeyToast('Shopify')
       return
@@ -167,11 +201,16 @@ async function generateShopifyText(
   }
 }
 
-export const shopifyProvider: LLMProvider<ShopifyModelId> = {
+async function checkIsModel(modelId: string): Promise<boolean> {
+  const models = await getShopifyModels()
+  return models.includes(modelId)
+}
+
+export const shopifyProvider: LLMProvider<string> = {
   name: 'Shopify',
-  models: SHOPIFY_MODELS,
   weakModel: 'gpt-4.1-mini',
-  isModel: (modelId: string): boolean => SHOPIFY_MODELS.includes(modelId as any),
+  isModel: async (modelId: string): Promise<boolean> => checkIsModel(modelId),
+  getModels: getShopifyModels,
   query: queryShopify,
   generateText: generateShopifyText,
 }
