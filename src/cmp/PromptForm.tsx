@@ -12,7 +12,7 @@ import {
   useStore,
   regenerateFromEditedMessage,
 } from '../lib/chat-state'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { ModelSubmenu } from './ModelSubmenu'
 import { SessionDropdown } from './SessionDropDown'
 
@@ -37,6 +37,9 @@ export function PromptForm({ editMode, editMessageId }: Props) {
 
   const isInit = useStore(isInitializing)
 
+  const [providerModels, setProviderModels] = useState<Record<string, string[]>>({})
+  const [isLoadingModels, setIsLoadingModels] = useState(true)
+
   useEffect(() => {
     if (editMessageId) {
       const messageToEdit = activeChatHistory.find((msg) => msg.id === editMessageId)
@@ -55,6 +58,30 @@ export function PromptForm({ editMode, editMessageId }: Props) {
       }
     }
   }, [editMessageId, activeChatHistory])
+
+  useEffect(() => {
+    let isMounted = true
+    async function fetchModels() {
+      const entries = await Promise.all(
+        providers.map(async (provider) => {
+          try {
+            const models = await provider.getModels()
+            return [provider.name, models] as [string, string[]]
+          } catch {
+            return [provider.name, []] as [string, string[]]
+          }
+        }),
+      )
+      if (isMounted) {
+        setProviderModels(Object.fromEntries(entries))
+        setIsLoadingModels(false)
+      }
+    }
+    fetchModels()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   if (isInit) {
     return (
@@ -86,7 +113,7 @@ export function PromptForm({ editMode, editMessageId }: Props) {
           <ModelSubmenu value={selectedModelId} onChange={setSelectedModelId} />
         </ActionPanel>
       }
-      navigationTitle={editMessageId ? 'Edit and Regenerate' : (activeSession?.title ?? 'New Chat')}
+      navigationTitle={editMessageId ? 'Edit and Regenerate' : activeSession?.title ?? 'New Chat'}
     >
       <Form.TextArea id="prompt" title="Prompt" value={currentQuery} onChange={setQuery} />
       {!activeSession && (
@@ -106,20 +133,24 @@ export function PromptForm({ editMode, editMessageId }: Props) {
           onChange={setEnableSearchTool}
         />
       )}
-      <Form.Dropdown
-        id="model-selector"
-        title="Model"
-        value={selectedModelId}
-        onChange={(newValue) => setSelectedModelId(newValue as ModelId)}
-      >
-        {providers.map((provider) => (
-          <Form.Dropdown.Section key={provider.name} title={provider.name}>
-            {provider.models.map((model) => (
-              <Form.Dropdown.Item key={model} title={model} value={model} />
-            ))}
-          </Form.Dropdown.Section>
-        ))}
-      </Form.Dropdown>
+      {isLoadingModels ? (
+        <Form.Description text="Loading models..." />
+      ) : (
+        <Form.Dropdown
+          id="model-selector"
+          title="Model"
+          value={selectedModelId}
+          onChange={(newValue) => setSelectedModelId(newValue as ModelId)}
+        >
+          {providers.map((provider) => (
+            <Form.Dropdown.Section key={provider.name} title={provider.name}>
+              {providerModels[provider.name].map((model) => (
+                <Form.Dropdown.Item key={model} title={model} value={model} />
+              ))}
+            </Form.Dropdown.Section>
+          ))}
+        </Form.Dropdown>
+      )}
     </Form>
   )
 }
