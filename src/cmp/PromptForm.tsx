@@ -66,7 +66,7 @@ export function PromptForm({ editMode, editMessageId }: Props) {
         providers.map(async (provider) => {
           try {
             const models = await provider.getModels()
-            return [provider.name, models] as [string, string[]]
+            return [provider.name, models ?? []] as [string, string[]]
           } catch {
             return [provider.name, []] as [string, string[]]
           }
@@ -139,7 +139,7 @@ export function PromptForm({ editMode, editMessageId }: Props) {
         <Form.Dropdown
           id="model-selector"
           title="Model"
-          value={selectedModelId}
+          value={selectedModelId ?? undefined}
           onChange={(newValue) => setSelectedModelId(newValue as ModelId)}
         >
           {providers.map((provider) => (

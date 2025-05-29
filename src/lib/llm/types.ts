@@ -3,7 +3,7 @@ import { ChatMessage } from '../../types'
 
 export interface LLMProvider<T extends string = string> {
   name: string
-  models?: readonly T[]
+  models?: readonly T[] | null
   searchModels?: readonly T[]
   weakModel: T
   isModel: (modelId: string) => Promise<boolean>

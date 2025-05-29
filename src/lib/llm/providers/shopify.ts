@@ -11,6 +11,22 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
+// Cache models
+let cachedShopifyModels: string[] | null = null
+let modelsLoadingPromise: Promise<string[]> | null = null
+
+async function getCachedShopifyModels(): Promise<string[]> {
+  if (cachedShopifyModels) return cachedShopifyModels
+  if (modelsLoadingPromise) return modelsLoadingPromise
+
+  modelsLoadingPromise = getShopifyModels().then((models) => {
+    cachedShopifyModels = models
+    modelsLoadingPromise = null
+    return models
+  })
+  return modelsLoadingPromise
+}
+
 // Simple cache for the API key
 let cachedApiKey: string | null = null
 let isRefreshing = false
@@ -202,15 +218,16 @@ async function generateShopifyText(
 }
 
 async function checkIsModel(modelId: string): Promise<boolean> {
-  const models = await getShopifyModels()
+  const models = await getCachedShopifyModels()
   return models.includes(modelId)
 }
 
 export const shopifyProvider: LLMProvider<string> = {
   name: 'Shopify',
   weakModel: 'gpt-4.1-mini',
+  models: cachedShopifyModels,
   isModel: async (modelId: string): Promise<boolean> => checkIsModel(modelId),
-  getModels: getShopifyModels,
+  getModels: getCachedShopifyModels,
   query: queryShopify,
   generateText: generateShopifyText,
 }
