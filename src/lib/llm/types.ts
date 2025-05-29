@@ -7,7 +7,7 @@ export interface LLMProvider<T extends string = string> {
   searchModels?: readonly T[]
   weakModel: T
   isModel: (modelId: string) => Promise<boolean>
-  getModels: () => Promise<T[]>
+  getModels: () => Promise<{ filteredModels: T[]; models: T[] }>
   query: (props: LLMQueryProps) => Promise<string | undefined>
   generateText: (prompt: string, options: LLMGenerateTextOptions) => Promise<string | null>
 }
@@ -23,3 +23,5 @@ export interface LLMQueryProps {
 export interface LLMGenerateTextOptions {
   maxTokens?: number
 }
+
+export type AiModels = { filteredModels: string[]; models: string[] }
