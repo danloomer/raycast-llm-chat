@@ -274,12 +274,7 @@ export const setQuery = (query: string) => useStore.set({ query })
 async function load() {
   useStore.set({ loading: true })
   const loaded = await loadState()
-
-  // Handle invalid model ID
-  if (!isValidModelId(loaded.selectedModelId)) {
-    loaded.selectedModelId = DEFAULT_MODEL_ID
-  }
-
+  
   useStore.set({
     persistentState: loaded,
     initializing: false,
